@@ -8,12 +8,12 @@
 //   Firebase console -> Project settings -> General -> Your apps -> Web app -> SDK setup
 
 export const FIREBASE_CONFIG = {
-  apiKey:            "PASTE_API_KEY",
-  authDomain:        "PASTE_PROJECT_ID.firebaseapp.com",
-  projectId:         "PASTE_PROJECT_ID",
-  storageBucket:     "PASTE_PROJECT_ID.firebasestorage.app",
-  messagingSenderId: "PASTE_SENDER_ID",
-  appId:             "PASTE_APP_ID"
+  apiKey:            "AIzaSyA6-wFOCUdkU143vdMk4aXmsZhKNRb3PDo",
+  authDomain:        "gk-songbook.firebaseapp.com",
+  projectId:         "gk-songbook",
+  storageBucket:     "gk-songbook.firebasestorage.app",
+  messagingSenderId: "1059337927141",
+  appId:             "1:1059337927141:web:e40afffa20a9574b65170c"
 };
 
 // Who gets the editing buttons. This is cosmetic only — the real gate is the

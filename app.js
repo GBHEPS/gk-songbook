@@ -324,11 +324,19 @@
     if (s.key) bits.push('<span class="m">' + esc(s.key) + '</span>');
     if (Number(s.capo) > 0) bits.push('<span class="m">Capo ' + esc(s.capo) + '</span>');
 
+    var q = encodeURIComponent(((s.title || "") + " " + (s.artist || "") + " lyrics").trim());
+
     el.cuProgress.textContent = (state.cuIdx + 1) + " / " + state.cuQueue.length;
     el.cuInner.innerHTML =
       '<div class="cu-song">' +
         '<h2 class="cu-title">' + esc(s.title || "Untitled") + '</h2>' +
         (bits.length ? '<div class="cu-sub">' + bits.join(" &middot; ") + '</div>' : '') +
+        '<div class="cu-links">' +
+          '<a class="lookup" target="_blank" rel="noopener noreferrer" ' +
+            'href="https://genius.com/search?q=' + q + '">Genius</a>' +
+          '<a class="lookup" target="_blank" rel="noopener noreferrer" ' +
+            'href="https://www.google.com/search?q=' + q + '">Search</a>' +
+        '</div>' +
       '</div>' +
       '<textarea id="cu-text" placeholder="Paste the lyrics for this one"></textarea>' +
       '<p class="err" id="cu-err"></p>';

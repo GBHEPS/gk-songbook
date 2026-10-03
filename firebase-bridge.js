@@ -20,7 +20,7 @@ import {
   getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-import { FIREBASE_CONFIG, EDITORS } from "./config.js";
+import { FIREBASE_CONFIG, EDITORS } from "./config.js?v=20261003153236";
 
 const editors = (EDITORS || []).map((e) => String(e).trim().toLowerCase()).filter(Boolean);
 

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<title>Songbook Import</title>
+<style>
+  :root {
+    --bg: #F7F5F1; --surface: #FFF; --ink: #22262F; --muted: #6E7079;
+    --line: #E3DED4; --brass: #8F6326; --on-brass: #FFFDF8;
+    --ok: #2F6B45; --skip: #76757E; --bad: #9B3330;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15171C; --surface: #1E2127; --ink: #E9E7E2; --muted: #9B9EA7;
+      --line: #2F333C; --brass: #DCA656; --on-brass: #1A1206;
+      --ok: #79C293; --skip: #8E919A; --bad: #E08A86;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding-block: 32px 64px; padding-inline: 16px;
+    background: var(--bg); color: var(--ink);
+    font: 16px/1.5 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  main { max-width: 620px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 6px; letter-spacing: -0.02em; }
+  .lede { color: var(--muted); font-size: 14.5px; margin: 0 0 24px; max-width: 58ch; }
+  button {
+    font: inherit; font-weight: 500; cursor: pointer;
+    border: 1px solid var(--brass); background: var(--brass); color: var(--on-brass);
+    border-radius: 10px; padding: 10px 16px;
+  }
+  button.quiet { background: transparent; color: var(--muted); border-color: var(--line); }
+  button[disabled] { opacity: .45; cursor: default; }
+  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+  .who { font-size: 13px; color: var(--muted); }
+  .panel {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; font-size: 14.5px;
+  }
+  .panel strong { font-weight: 600; }
+  ul.log { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  ul.log li {
+    display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line);
+  }
+  ul.log li:last-child { border-bottom: 0; }
+  .tag {
+    font: 600 10px/1.8 "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    letter-spacing: .08em; text-transform: uppercase; min-width: 68px;
+  }
+  .tag.ok { color: var(--ok); } .tag.skip { color: var(--skip); } .tag.bad { color: var(--bad); }
+  code { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: .92em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Load the songbook</h1>
+  <p class="lede">
+    One-time setup. Sign in with an account on the editor list, then import. Songs
+    already in the database are left alone, so running this twice cannot overwrite
+    lyrics you have added.
+  </p>
+
+  <div class="bar">
+    <button id="signin">Sign in</button>
+    <button id="run" class="quiet" disabled>Import 27 songs</button>
+    <span class="who" id="who"></span>
+  </div>
+
+  <div class="panel" id="status">Starting up…</div>
+  <ul class="log" id="log"></ul>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getFirestore, collection, doc, getDocs, setDoc
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { FIREBASE_CONFIG, EDITORS } from "./config.js";
+
+const $ = (id) => document.getElementById(id);
+const statusEl = $("status"), logEl = $("log");
+const say = (html) => { statusEl.innerHTML = html; };
+const line = (tag, cls, text) => {
+  const li = document.createElement("li");
+  const t = document.createElement("span");
+  t.className = "tag " + cls; t.textContent = tag;
+  const s = document.createElement("span"); s.textContent = text;
+  li.append(t, s); logEl.append(li);
+};
+
+if (String(FIREBASE_CONFIG.projectId).startsWith("PASTE_")) {
+  say("<strong>config.js still has placeholders.</strong> Fill in the Firebase values first.");
+  throw new Error("unconfigured");
+}
+
+const app  = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const fs   = getFirestore(app);
+const editors = (EDITORS || []).map((e) => String(e).trim().toLowerCase());
+
+const provider = new GoogleAuthProvider();
+provider.setCustomParameters({ prompt: "select_account" });
+
+$("signin").addEventListener("click", () =>
+  signInWithPopup(auth, provider).catch((e) => say("Sign-in failed: <code>" + e.code + "</code>")));
+
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    $("who").textContent = "";
+    $("run").disabled = true;
+    say("Not signed in yet.");
+    return;
+  }
+  const email = (user.email || "").toLowerCase();
+  const ok = user.emailVerified && editors.includes(email);
+  $("who").textContent = user.email;
+  $("signin").disabled = true;
+  $("run").disabled = !ok;
+  say(ok
+    ? "Signed in as <strong>" + user.email + "</strong>. Ready to import."
+    : "<strong>" + user.email + "</strong> is not on the editor list in config.js, so writes will be refused.");
+});
+
+$("run").addEventListener("click", async () => {
+  $("run").disabled = true;
+  logEl.innerHTML = "";
+  say("Reading the seed file…");
+
+  let seed;
+  try {
+    const res = await fetch("seed-songs.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    seed = await res.json();
+  } catch (e) {
+    say("Couldn't read <code>seed-songs.json</code>: " + e.message);
+    return;
+  }
+
+  say("Checking what's already there…");
+  let existing = new Set();
+  try {
+    const snap = await getDocs(collection(fs, "songs"));
+    snap.forEach((d) => existing.add(d.id));
+  } catch (e) {
+    say("Couldn't read the songs collection: <code>" + (e.code || e.message) + "</code>");
+    return;
+  }
+
+  let added = 0, skipped = 0, failed = 0;
+  for (const [id, body] of Object.entries(seed)) {
+    if (existing.has(id)) { line("already in", "skip", body.title || id); skipped++; continue; }
+    try {
+      await setDoc(doc(fs, "songs", id), body);
+      line("added", "ok", body.title || id);
+      added++;
+    } catch (e) {
+      line("failed", "bad", (body.title || id) + " — " + (e.code || e.message));
+      failed++;
+    }
+  }
+
+  say("<strong>Done.</strong> " + added + " added, " + skipped +
+      " already there, " + failed + " failed." +
+      (failed ? "" : " You can close this page — open <code>index.html</code> to use the songbook."));
+});
+</script>
+</body>
+</html>
